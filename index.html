@@ -2076,36 +2076,87 @@ function addAllToGcal(){
   });
 }
 
-// API 키 연결 (배포 후 사용)
+// 구글 캘린더 ID
+const GCAL_CALENDAR_ID = 'c49de85d370fc27c69a8d418cd26edf8138d23d4fd02d6dd0eee9127c74d11d6@group.calendar.google.com';
+
+// API 키 연결 + 구글 캘린더 데이터 fetch
 function connectGcal(){
   const key = document.getElementById('gcalApiKey').value.trim();
   if(!key){ toast('API 키를 입력해주세요'); return; }
-  // API 키 저장
   localStorage.setItem('gcal_api_key', key);
-  document.getElementById('calApiBanner').style.background = '#1A2E1A';
-  document.getElementById('calApiBanner').style.borderColor = 'var(--sage)';
-  document.getElementById('calApiBanner').innerHTML = `
-    <div style="width:8px;height:8px;border-radius:50%;background:var(--sage);flex-shrink:0;"></div>
-    <div style="font-size:.78rem;color:#aaa;flex:1;">
-      <b style="color:var(--sage-light);">API 키 저장 완료</b> — 배포 후 Google Cloud Console에서 도메인을 등록하면 실시간 동기화가 활성화됩니다.
-    </div>
-    <span style="font-size:.72rem;color:#888;">키: ${key.slice(0,8)}••••</span>
-    <button onclick="disconnectGcal()" style="padding:4px 10px;background:transparent;color:#888;border:1px solid #555;border-radius:6px;font-size:.7rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">해제</button>`;
-  toast('API 키가 저장되었습니다 ✓');
+  fetchGcalEvents(key);
 }
+
+function fetchGcalEvents(key){
+  const calId = encodeURIComponent(GCAL_CALENDAR_ID);
+  const now   = new Date();
+  const timeMin = new Date(now.getFullYear(), 0, 1).toISOString();   // 올해 1월 1일
+  const timeMax = new Date(now.getFullYear(), 11, 31).toISOString(); // 올해 12월 31일
+  const url = `https://www.googleapis.com/calendar/v3/calendars/${calId}/events?key=${key}&timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&maxResults=100`;
+
+  toast('구글 캘린더 연동 중...');
+
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      if(data.error){
+        toast('❌ ' + (data.error.message || 'API 오류'));
+        document.getElementById('calApiBanner').innerHTML = `
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--terra);flex-shrink:0;"></div>
+          <div style="font-size:.78rem;color:#aaa;flex:1;"><b style="color:var(--terra-light);">연동 실패</b> — ${data.error.message}</div>
+          <button onclick="disconnectGcal()" style="padding:4px 10px;background:transparent;color:#888;border:1px solid #555;border-radius:6px;font-size:.7rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">해제</button>`;
+        return;
+      }
+
+      // 구글 캘린더 이벤트 → calEv에 병합
+      const items = data.items || [];
+      items.forEach(ev => {
+        const date = (ev.start.date || ev.start.dateTime || '').slice(0,10);
+        if(!date) return;
+        if(!calEv[date]) calEv[date] = [];
+        // 중복 방지
+        const exists = calEv[date].find(e => e.t === ev.summary);
+        if(!exists) calEv[date].push({t: ev.summary || '(제목 없음)', c: 'eg'});
+      });
+
+      renderCal();
+
+      document.getElementById('calApiBanner').style.background = '#1A2E1A';
+      document.getElementById('calApiBanner').style.borderColor = 'var(--sage)';
+      document.getElementById('calApiBanner').innerHTML = `
+        <div style="width:8px;height:8px;border-radius:50%;background:var(--sage);flex-shrink:0;animation:blink 2s infinite;"></div>
+        <div style="font-size:.78rem;color:#aaa;flex:1;">
+          <b style="color:var(--sage-light);">✅ 구글 캘린더 연동 완료</b> — ${items.length}개 일정을 불러왔습니다
+        </div>
+        <span style="font-size:.72rem;color:#888;">키: ${key.slice(0,8)}••••</span>
+        <button onclick="refreshGcal()" style="padding:4px 10px;background:var(--sage);color:white;border:none;border-radius:6px;font-size:.7rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-right:4px;">새로고침</button>
+        <button onclick="disconnectGcal()" style="padding:4px 10px;background:transparent;color:#888;border:1px solid #555;border-radius:6px;font-size:.7rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">해제</button>`;
+      toast(`✅ 구글 캘린더 ${items.length}개 일정 연동 완료!`);
+    })
+    .catch(err => {
+      toast('❌ 네트워크 오류: ' + err.message);
+    });
+}
+
+function refreshGcal(){
+  const key = localStorage.getItem('gcal_api_key');
+  if(key) fetchGcalEvents(key);
+}
+
 function disconnectGcal(){
   localStorage.removeItem('gcal_api_key');
   location.reload();
 }
 
-// 저장된 API 키 복원
+// 저장된 API 키 자동 복원 + fetch
 (function(){
   const savedKey = localStorage.getItem('gcal_api_key');
   if(savedKey){
     setTimeout(()=>{
-      document.getElementById('gcalApiKey').value = savedKey;
-      connectGcal();
-    }, 200);
+      const input = document.getElementById('gcalApiKey');
+      if(input) input.value = savedKey;
+      fetchGcalEvents(savedKey);
+    }, 500);
   }
 })();
 
