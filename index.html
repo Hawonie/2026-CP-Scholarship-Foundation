@@ -2090,8 +2090,8 @@ function connectGcal(){
 function fetchGcalEvents(key){
   const calId = encodeURIComponent(GCAL_CALENDAR_ID);
   const now   = new Date();
-  const timeMin = new Date(now.getFullYear(), 0, 1).toISOString();   // 올해 1월 1일
-  const timeMax = new Date(now.getFullYear(), 11, 31).toISOString(); // 올해 12월 31일
+  const timeMin = new Date(now.getFullYear(), 0, 1).toISOString();
+  const timeMax = new Date(now.getFullYear() + 1, 0, 1).toISOString();
   const url = `https://www.googleapis.com/calendar/v3/calendars/${calId}/events?key=${key}&timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&maxResults=100`;
 
   toast('구글 캘린더 연동 중...');
@@ -2099,6 +2099,7 @@ function fetchGcalEvents(key){
   fetch(url)
     .then(r => r.json())
     .then(data => {
+      console.log('GCal API 응답:', data); // 디버깅용
       if(data.error){
         toast('❌ ' + (data.error.message || 'API 오류'));
         document.getElementById('calApiBanner').innerHTML = `
