@@ -2111,8 +2111,14 @@ function fetchGcalEvents(key){
 
       // 구글 캘린더 이벤트 → calEv에 병합
       const items = data.items || [];
+      console.log('총 이벤트 수:', items.length, items.map(e=>({title:e.summary, start:e.start})));
       items.forEach(ev => {
-        const date = (ev.start.date || ev.start.dateTime || '').slice(0,10);
+        // 날짜 추출 - 종일 이벤트(date) 또는 시간 이벤트(dateTime)
+        let date = '';
+        if(ev.start){
+          if(ev.start.date)     date = ev.start.date.slice(0,10);
+          else if(ev.start.dateTime) date = ev.start.dateTime.slice(0,10);
+        }
         if(!date) return;
         if(!calEv[date]) calEv[date] = [];
         // 중복 방지
