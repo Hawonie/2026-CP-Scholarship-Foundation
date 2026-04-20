@@ -2285,7 +2285,7 @@ function connectGcal(){
 }
 
 function fetchGcalEvents(key){
-  const calId = encodeURIComponent(GCAL_CALENDAR_ID);
+  const calId = encodeURIComponent(GCAL_ID);
   const now   = new Date();
   const timeMin = new Date(now.getFullYear(), 0, 1).toISOString();
   const timeMax = new Date(now.getFullYear() + 1, 0, 1).toISOString();
