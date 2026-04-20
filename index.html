@@ -1824,8 +1824,11 @@ function renderGanttTaskList(){
 
 // 간트 → 캘린더 데이터 동기화
 function syncGanttToCalendar(){
+  const deletedIds = JSON.parse(localStorage.getItem('calDeletedIds')||'[]');
   calEvData.length = 0;
   ganttTasks.forEach(t=>{
+    const key = `${t.title}__${t.start}`;
+    if(deletedIds.includes(key)) return; // 삭제된 항목 제외
     calEvData.push({
       date:     t.start,
       title:    t.title,
@@ -2132,13 +2135,22 @@ function deleteCalEvent(idx){
   const ev = calEvData[idx];
   if(!ev) return;
   if(!confirm(`"${ev.title}" 일정을 목록에서 삭제하시겠습니까?\n(구글 캘린더 원본은 삭제되지 않습니다)`)) return;
+
+  // 삭제 목록에 저장 (ganttTask ID 기준)
+  const deletedIds = JSON.parse(localStorage.getItem('calDeletedIds')||'[]');
+  // title+date 조합으로 식별
+  const key = `${ev.title}__${ev.date}`;
+  if(!deletedIds.includes(key)){
+    deletedIds.push(key);
+    localStorage.setItem('calDeletedIds', JSON.stringify(deletedIds));
+  }
+
   calEvData.splice(idx, 1);
-  // calEv에서도 제거
   if(calEv[ev.date]){
     calEv[ev.date] = calEv[ev.date].filter(e=>e.t !== ev.title);
   }
   renderCal();
-  toast(`"${ev.title}" 목록에서 삭제됐습니다`);
+  toast(`"${ev.title}" 삭제됐습니다`);
 }
 
 // 전체 일정 순차 열기
@@ -3213,8 +3225,8 @@ function deleteSp(id){
   toast(s.company + ' 삭제되었습니다');
 }
 
-window.addEventListener('load',()=>{
-  lsLoad();
+window.addEventListener('load', async ()=>{
+  await lsLoad();
   // 기본 5개 body 무조건 BACKUP으로 복원 (비어있거나 오염된 경우 대비)
   if(typeof FIXED_TPL_BACKUP !== 'undefined'){
     FIXED_TPL_BACKUP.forEach(bk=>{
@@ -3630,107 +3642,122 @@ document.addEventListener('click', e=>{
 
 // ═══ localStorage 저장/로드 ═══
 const LS_KEY = 'cp_dashboard_v1';
+const BACKEND_API = 'https://cp-scholarship-backend-production.up.railway.app';
 
+// 데이터 수집 함수 (저장할 데이터 객체 반환)
+function collectData(){
+  return {
+    taskData,
+    fMembers,
+    fStartYear:  document.getElementById('fStartYear').value,
+    fStartMonth: document.getElementById('fStartMonth').value,
+    fCurRound:   document.getElementById('fCurRound').value,
+    fFundGoal:   document.getElementById('fFundGoal').value,
+    fRate:       document.getElementById('fRate').value,
+    spList, spNextId,
+    ganttTasks, ganttNextId,
+    tplListCustom: tplList.filter(t=>!t.fixed),
+    tplListFixed:  tplList.filter(t=>t.fixed),
+    qnaList, qnaNextId,
+    ideaList, ideaNextId,
+    kv1:   document.getElementById('kv1').innerHTML,
+    kv1d:  document.getElementById('kv1d').innerHTML,
+    kv2:   document.getElementById('kv2').innerHTML,
+    kv2d:  document.getElementById('kv2d').innerHTML,
+    kv3:   document.getElementById('kv3').innerHTML,
+    kv3d:  document.getElementById('kv3d').innerHTML,
+    chair: document.getElementById('chair').innerHTML,
+    memoView: document.getElementById('memoView').innerHTML,
+    memoEdit: document.getElementById('memoEdit').value,
+    calDeletedIds: JSON.parse(localStorage.getItem('calDeletedIds')||'[]'),
+  };
+}
+
+// 데이터 적용 함수 (불러온 데이터를 화면에 반영)
+function applyData(d){
+  if(!d) return;
+  if(d.taskData)    taskData   = d.taskData;
+  if(d.fMembers)    fMembers   = d.fMembers;
+  if(d.fStartYear)  document.getElementById('fStartYear').value  = d.fStartYear;
+  if(d.fStartMonth) document.getElementById('fStartMonth').value = d.fStartMonth;
+  if(d.fCurRound)   document.getElementById('fCurRound').value   = d.fCurRound;
+  if(d.fFundGoal)   document.getElementById('fFundGoal').value   = d.fFundGoal;
+  if(d.fRate)       document.getElementById('fRate').value       = d.fRate;
+  if(d.spList)      spList   = d.spList;
+  if(d.spNextId)    spNextId = d.spNextId;
+  if(d.ganttTasks)  ganttTasks  = d.ganttTasks;
+  if(d.ganttNextId) ganttNextId = d.ganttNextId;
+  const fixedIds = ['kickoff','weekly','meeting','proposal','dday'];
+  if(d.tplListFixed){
+    d.tplListFixed.forEach(saved=>{
+      const t = tplList.find(x=>x.id===saved.id && x.fixed);
+      if(t && saved.body) t.body = saved.body;
+    });
+  }
+  if(d.tplListCustom){
+    d.tplListCustom.forEach(ct=>{
+      if(!fixedIds.includes(ct.id) && !tplList.find(t=>t.id===ct.id))
+        tplList.push({...ct, fixed:false});
+    });
+  }
+  fixedIds.forEach(id=>{ const t=tplList.find(x=>x.id===id); if(t) t.fixed=true; });
+  if(d.qnaList)    qnaList    = d.qnaList;
+  if(d.qnaNextId)  qnaNextId  = d.qnaNextId;
+  if(d.ideaList)   ideaList   = d.ideaList;
+  if(d.ideaNextId) ideaNextId = d.ideaNextId;
+  if(d.kv1)  document.getElementById('kv1').innerHTML  = d.kv1;
+  if(d.kv1d) document.getElementById('kv1d').innerHTML = d.kv1d;
+  if(d.chair) document.getElementById('chair').innerHTML = d.chair;
+  if(d.memoView) document.getElementById('memoView').innerHTML = d.memoView;
+  if(d.memoEdit) document.getElementById('memoEdit').value     = d.memoEdit;
+  if(d.calDeletedIds) localStorage.setItem('calDeletedIds', JSON.stringify(d.calDeletedIds));
+}
+
+// ── 저장 (DB + localStorage 동시) ──
 function lsSave(){
   try {
-    const data = {
-      // 과제
-      taskData,
-      fMembers,
-      fStartYear:  document.getElementById('fStartYear').value,
-      fStartMonth: document.getElementById('fStartMonth').value,
-      fCurRound:   document.getElementById('fCurRound').value,
-      fFundGoal:   document.getElementById('fFundGoal').value,
-      fRate:       document.getElementById('fRate').value,
-      // 스폰서
-      spList,
-      spNextId,
-      // 간트
-      ganttTasks,
-      ganttNextId,
-      // 템플릿
-      tplListCustom: tplList.filter(t=>!t.fixed),
-      tplListFixed:  tplList.filter(t=>t.fixed),  // admin 수정 내용 보존
-      // QnA
-      qnaList,
-      qnaNextId,
-      // 아이디어
-      ideaList,
-      ideaNextId,
-      // KPI 편집값
-      kv1:   document.getElementById('kv1').innerHTML,
-      kv1d:  document.getElementById('kv1d').innerHTML,
-      kv2:   document.getElementById('kv2').innerHTML,
-      kv2d:  document.getElementById('kv2d').innerHTML,
-      kv3:   document.getElementById('kv3').innerHTML,
-      kv3d:  document.getElementById('kv3d').innerHTML,
-      // 회장 이름
-      chair: document.getElementById('chair').innerHTML,
-      // 전략 메모
-      memoView: document.getElementById('memoView').innerHTML,
-      memoEdit: document.getElementById('memoEdit').value,
-    };
+    const data = collectData();
+    // localStorage 백업
     localStorage.setItem(LS_KEY, JSON.stringify(data));
+    // DB 저장
+    fetch(`${BACKEND_API}/data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data })
+    })
+    .then(r=>r.json())
+    .then(res=>{ if(!res.success) console.warn('DB 저장 실패:', res); })
+    .catch(e=>console.warn('DB 저장 오류:', e));
   } catch(e){ console.warn('저장 실패:', e); }
 }
 
-function lsLoad(){
+// ── 불러오기 (DB 우선, 실패 시 localStorage) ──
+async function lsLoad(){
+  try {
+    // DB에서 먼저 시도
+    const res = await fetch(`${BACKEND_API}/data`);
+    const json = await res.json();
+    if(json.success && Object.keys(json.data).length > 0){
+      // DB 데이터를 하나의 객체로 합치기
+      const merged = {};
+      Object.entries(json.data).forEach(([k,v])=>{ merged[k]=v; });
+      // 단일 키 'dashboard'로 저장된 경우
+      const d = merged.dashboard || merged;
+      applyData(d);
+      // localStorage도 동기화
+      localStorage.setItem(LS_KEY, JSON.stringify(d));
+      toast('☁️ DB에서 데이터를 불러왔습니다');
+      return;
+    }
+  } catch(e){
+    console.warn('DB 불러오기 실패, localStorage 사용:', e);
+  }
+  // localStorage 폴백
   try {
     const raw = localStorage.getItem(LS_KEY);
     if(!raw) return;
-    const d = JSON.parse(raw);
-    // 과제
-    if(d.taskData) taskData = d.taskData;
-    // 장학회비
-    if(d.fMembers)      fMembers = d.fMembers;
-    if(d.fStartYear)    document.getElementById('fStartYear').value  = d.fStartYear;
-    if(d.fStartMonth)   document.getElementById('fStartMonth').value = d.fStartMonth;
-    if(d.fCurRound)     document.getElementById('fCurRound').value   = d.fCurRound;
-    if(d.fFundGoal)     document.getElementById('fFundGoal').value   = d.fFundGoal;
-    if(d.fRate)         document.getElementById('fRate').value       = d.fRate;
-    // 스폰서
-    if(d.spList)        spList   = d.spList;
-    if(d.spNextId)      spNextId = d.spNextId;
-    // 간트
-    if(d.ganttTasks)    ganttTasks   = d.ganttTasks;
-    if(d.ganttNextId)   ganttNextId  = d.ganttNextId;
-    // 템플릿: 기본 5개는 코드 원본 tplList를 기준으로 항상 유지
-    // admin이 수정한 body만 덮어쓰기
-    if(d.tplListFixed){
-      d.tplListFixed.forEach(saved=>{
-        const t = tplList.find(x=>x.id===saved.id && x.fixed);
-        if(t && saved.body) t.body = saved.body;
-      });
-    }
-    // custom 템플릿만 추가 (기본 5개와 id 겹치면 무시)
-    const fixedIds = ['kickoff','weekly','meeting','proposal','dday'];
-    if(d.tplListCustom){
-      d.tplListCustom.forEach(ct=>{
-        if(!fixedIds.includes(ct.id) && !tplList.find(t=>t.id===ct.id)){
-          tplList.push({...ct, fixed:false});
-        }
-      });
-    }
-    // 기본 5개 무조건 fixed:true 보장
-    fixedIds.forEach(id=>{
-      const t = tplList.find(x=>x.id===id);
-      if(t) t.fixed = true;
-    });
-    // QnA
-    if(d.qnaList)   qnaList   = d.qnaList;
-    if(d.qnaNextId) qnaNextId = d.qnaNextId;
-    // 아이디어
-    if(d.ideaList)   ideaList   = d.ideaList;
-    if(d.ideaNextId) ideaNextId = d.ideaNextId;
-    // KPI (kv2는 간트에서 동적 계산, kv3은 고정값)
-    if(d.kv1)  document.getElementById('kv1').innerHTML  = d.kv1;
-    if(d.kv1d) document.getElementById('kv1d').innerHTML = d.kv1d;
-    // 회장 이름
-    if(d.chair) document.getElementById('chair').innerHTML = d.chair;
-    // 전략 메모
-    if(d.memoView) document.getElementById('memoView').innerHTML = d.memoView;
-    if(d.memoEdit) document.getElementById('memoEdit').value     = d.memoEdit;
-    toast('💾 저장된 데이터를 불러왔습니다');
+    applyData(JSON.parse(raw));
+    toast('💾 로컬 데이터를 불러왔습니다');
   } catch(e){ console.warn('불러오기 실패:', e); }
 }
 
