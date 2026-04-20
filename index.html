@@ -544,10 +544,10 @@ header{background:var(--charcoal);padding:18px 44px;display:flex;justify-content
   <div id="calApiBanner" style="display:flex;align-items:center;gap:12px;background:#2C2C2E;border:1px solid #444;border-radius:12px;padding:12px 18px;margin-bottom:18px;flex-wrap:wrap;">
     <div style="width:8px;height:8px;border-radius:50%;background:#E8A882;flex-shrink:0;animation:blink 2s infinite;"></div>
     <div style="font-size:.78rem;color:#aaa;flex:1;">
-      <b style="color:#E8CC7A;">API 연동 대기 중</b> — 배포 후 API 키를 입력하면 구글 캘린더 일정이 실시간으로 동기화됩니다.
+      <b style="color:#E8CC7A;">API 연동 대기 중</b> — API 키를 입력하면 구글 캘린더 일정이 실시간으로 동기화됩니다.
     </div>
     <div style="display:flex;align-items:center;gap:8px;" id="apiKeyArea">
-      <input id="gcalApiKey" type="password" placeholder="API 키 입력 (배포 후)" maxlength="60"
+      <input id="gcalApiKey" type="password" placeholder="API 키 입력" maxlength="60"
         style="padding:6px 10px;border:1px solid #555;border-radius:7px;background:#1A1A1A;color:#ccc;font-family:'Noto Sans KR',sans-serif;font-size:.76rem;outline:none;width:220px;"
         onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='#555'">
       <button onclick="connectGcal()" style="padding:6px 14px;background:var(--gold);color:var(--charcoal);border:none;border-radius:7px;font-family:'Noto Sans KR',sans-serif;font-size:.75rem;font-weight:700;cursor:pointer;">연결</button>
@@ -573,13 +573,11 @@ header{background:var(--charcoal);padding:18px 44px;display:flex;justify-content
       </div>
     </div>
 
-    <!-- 우측: 전체 일정 목록 + 구글캘린더 추가 버튼 -->
+    <!-- 우측: 전체 일정 목록 + 개별 등록 버튼 -->
     <div class="card" style="padding:20px;">
-      <div class="card-hd" style="margin-bottom:14px;">📋 전체 일정 목록</div>
-      <div style="font-size:.72rem;color:#aaa;margin-bottom:12px;">각 일정 옆 버튼으로 Google Calendar에 개별 추가</div>
+      <div class="card-hd" style="margin-bottom:6px;">📋 전체 일정 목록</div>
+      <div style="font-size:.72rem;color:#aaa;margin-bottom:12px;">📌 버튼을 눌러 내 구글 캘린더에 개별 추가하세요</div>
       <div id="eventList"></div>
-
-      <!-- 전체 일괄 추가 -->
       <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
         <button onclick="addAllToGcal()" style="width:100%;padding:10px;background:var(--charcoal);color:var(--gold-light);border:none;border-radius:9px;font-family:'Noto Sans KR',sans-serif;font-size:.8rem;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px;" onmouseover="this.style.background='#2C3E50'" onmouseout="this.style.background='var(--charcoal)'">
           📅 전체 일정 한번에 추가
@@ -589,16 +587,62 @@ header{background:var(--charcoal);padding:18px 44px;display:flex;justify-content
     </div>
   </div>
 
-  <!-- 구독 가이드 -->
-  <div style="margin-top:18px;" class="card">
-    <div class="card-hd">🔗 CP 장학회 캘린더 공유 가이드</div>
-    <ol class="guide">
-      <li>위 <b style="color:var(--gold);">📅 캘린더 구독하기</b> 버튼 클릭 → 구글 계정으로 로그인 → <b>"추가"</b> 클릭</li>
-      <li>Google Calendar 좌측 "다른 캘린더"에 <b>CP 장학회 4대 · 펀드레이징</b> 캘린더가 추가됩니다</li>
-      <li>캘린더 ⋮ 메뉴 → <b>"특정 사용자와 공유"</b> → 임원 Gmail 주소 입력</li>
-      <li>권한: <b>"일정 보기 및 수정"</b> 으로 설정</li>
-      <li>배포 후 API 키를 위 입력창에 넣으면 이 대시보드와 실시간 동기화됩니다</li>
-    </ol>
+  <!-- 하단 가이드 -->
+  <div style="margin-top:24px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+
+    <!-- 구독 가이드 -->
+    <div class="card">
+      <div class="card-hd" style="margin-bottom:14px;">📅 CP 장학회 캘린더 구독 방법</div>
+      <ol class="guide">
+        <li>
+          <div>아래 버튼 클릭 → 구글 계정 로그인
+            <div style="margin-top:8px;">
+              <a href="https://calendar.google.com/calendar/u/0?cid=YzQ5ZGU4NWQzNzBmYzI3YzY5YThkNDE4Y2QyNmVkZjgxMzhkMjNkNGZkMDJkNmRkMGVlZTkxMjdjNzRkMTFkNkBncm91cC5jYWxlbmRhci5nb29nbGUuY29t" target="_blank"
+                style="display:inline-block;padding:8px 18px;background:var(--gold);color:var(--charcoal);border-radius:8px;font-size:.76rem;font-weight:700;text-decoration:none;">
+                📅 장학회 캘린더 구독하기
+              </a>
+            </div>
+          </div>
+        </li>
+        <li><b>"추가"</b> 클릭 → 내 Google Calendar에 자동 등록</li>
+        <li>이후 장학회 일정이 내 캘린더에 <b>자동 반영</b>됩니다 ✅</li>
+      </ol>
+    </div>
+
+    <!-- 개별 일정 등록 가이드 -->
+    <div class="card">
+      <div class="card-hd" style="margin-bottom:14px;">➕ 개별 일정 내 캘린더에 등록하는 방법</div>
+      <ol class="guide">
+        <li>우측 <b>📋 전체 일정 목록</b>에서 원하는 일정 찾기</li>
+        <li>일정 옆 <b style="color:var(--gold);">+ 추가</b> 버튼 클릭</li>
+        <li>구글 캘린더 페이지에서 <b>"저장"</b> 클릭</li>
+        <li>또는 <b>전체 일정 한번에 추가</b> 버튼으로 모든 일정 한 번에 등록 ✅</li>
+      </ol>
+    </div>
+
+  </div>
+
+  <!-- 직접 수정 + 링크 공유 -->
+  <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+
+    <!-- 구글 캘린더 직접 수정 -->
+    <div class="card" style="background:var(--charcoal);border-color:#444;">
+      <div style="font-size:.78rem;font-weight:700;color:var(--gold-light);margin-bottom:6px;">✏️ 구글 캘린더에서 직접 일정 추가·수정</div>
+      <div style="font-size:.72rem;color:#888;margin-bottom:12px;line-height:1.6;">장학회 캘린더에 직접 접속해서 일정을 추가하거나 수정할 수 있습니다. 변경사항은 구독자 전원에게 자동 반영됩니다.</div>
+      <a href="https://calendar.google.com/calendar/r" target="_blank"
+        style="display:inline-block;padding:8px 18px;background:var(--sage);color:white;border-radius:8px;font-size:.76rem;font-weight:700;text-decoration:none;margin-right:8px;">
+        🔗 Google Calendar 열기
+      </a>
+    </div>
+
+    <!-- 링크 공유 -->
+    <div class="card" style="background:var(--charcoal);border-color:#444;">
+      <div style="font-size:.78rem;font-weight:700;color:var(--gold-light);margin-bottom:6px;">🔗 장학회 캘린더 링크 공유</div>
+      <div style="font-size:.72rem;color:#888;margin-bottom:10px;">아래 링크를 복사해서 임원들에게 공유하세요</div>
+      <div style="padding:8px 12px;background:#1A1A1C;border-radius:7px;font-size:.7rem;color:#aaa;word-break:break-all;margin-bottom:10px;font-family:monospace;" id="calLinkDisplay">https://calendar.google.com/calendar/u/0?cid=YzQ5ZGU4NWQzNzBmYzI3YzY5YThkNDE4Y2QyNmVkZjgxMzhkMjNkNGZkMDJkNmRkMGVlZTkxMjdjNzRkMTFkNkBncm91cC5jYWxlbmRhci5nb29nbGUuY29t</div>
+      <button onclick="copyCalLink()" style="padding:7px 18px;background:var(--gold);color:var(--charcoal);border:none;border-radius:7px;font-family:'Noto Sans KR',sans-serif;font-size:.76rem;font-weight:700;cursor:pointer;">🔗 링크 복사</button>
+    </div>
+
   </div>
 </div>
 
@@ -2074,6 +2118,11 @@ function addAllToGcal(){
   calEvData.forEach((ev, i)=>{
     setTimeout(()=>{ window.open(makeGcalUrl(ev), '_blank'); }, i * 600);
   });
+}
+
+function copyCalLink(){
+  const link = document.getElementById('calLinkDisplay').textContent.trim();
+  navigator.clipboard.writeText(link).then(()=>toast('캘린더 링크가 복사되었습니다 ✓'));
 }
 
 // 구글 캘린더 ID
