@@ -3765,18 +3765,17 @@ function lsSave(){
 // ── 불러오기 (DB 우선, 실패 시 localStorage) ──
 async function lsLoad(){
   try {
-    // DB에서 먼저 시도
-    const res = await fetch(`${BACKEND_URL}/data`);
+    const res  = await fetch(`${BACKEND_URL}/data`);
     const json = await res.json();
-    if(json.success && Object.keys(json.data).length > 0){
-      // DB 데이터를 하나의 객체로 합치기
+    if(json.success && json.data && Object.keys(json.data).length > 0){
+      // DB에서 받은 데이터는 {key: value} 형태
+      // value가 객체인 경우 그대로, 문자열인 경우 파싱
       const merged = {};
-      Object.entries(json.data).forEach(([k,v])=>{ merged[k]=v; });
-      // 단일 키 'dashboard'로 저장된 경우
-      const d = merged.dashboard || merged;
-      applyData(d);
-      // localStorage도 동기화
-      localStorage.setItem(LS_KEY, JSON.stringify(d));
+      Object.entries(json.data).forEach(([k,v])=>{
+        merged[k] = (typeof v === 'string') ? JSON.parse(v) : v;
+      });
+      applyData(merged);
+      localStorage.setItem(LS_KEY, JSON.stringify(merged));
       toast('☁️ DB에서 데이터를 불러왔습니다');
       return;
     }
