@@ -3774,7 +3774,7 @@ async function lsLoad(){
     });
     toast('📡 서버 응답: ' + res.status);
     const text = await res.text();
-    toast('📦 데이터 길이: ' + text.length);
+    toast('📦 내용: ' + text.slice(0,50));
     const json = JSON.parse(text);
     const keys = json.data ? Object.keys(json.data).length : 0;
     toast('🔑 키 개수: ' + keys);
