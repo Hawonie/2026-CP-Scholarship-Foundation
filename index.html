@@ -2894,14 +2894,22 @@ function monthLabel(sy,sm,idx){
 function renderFTable(){
   const {sy,sm,cr} = getSettings();
   const AMOUNT = 10000;
+  const isMobile = window.innerWidth <= 640;
+  const p  = isMobile ? '6px 4px' : '9px 12px';   // 이름 셀 패딩
+  const p2 = isMobile ? '6px 3px' : '9px 10px';   // 일반 셀 패딩
+  const p3 = isMobile ? '6px 2px' : '9px 8px';    // 월 셀 패딩
+  const fs  = isMobile ? '.66rem' : '.72rem';       // 헤더 폰트
+  const fs2 = isMobile ? '.7rem'  : '.8rem';        // 바디 폰트
 
   // HEAD
   let th = `<tr style="background:var(--charcoal);color:var(--cream);">
-    <th style="padding:9px 12px;text-align:left;font-size:.72rem;letter-spacing:.05em;white-space:nowrap;">이름</th>
-    <th style="padding:9px 10px;text-align:right;font-size:.72rem;white-space:nowrap;" title="시스템 도입 전 납부액">이전납부</th>`;
-  for(let i=0;i<cr;i++) th += `<th style="padding:9px 8px;text-align:center;font-size:.72rem;">${monthLabel(sy,sm,i)}</th>`;
-  th += `<th style="padding:9px 10px;text-align:right;font-size:.72rem;">누적납부</th>
-    <th style="padding:9px 10px;text-align:right;font-size:.72rem;">미납</th></tr>`;
+    <th style="padding:${p};text-align:left;font-size:${fs};letter-spacing:.05em;white-space:nowrap;">이름</th>`;
+  if(!isMobile){
+    th += `<th style="padding:${p2};text-align:right;font-size:${fs};white-space:nowrap;" title="시스템 도입 전 납부액">이전납부</th>`;
+  }
+  for(let i=0;i<cr;i++) th += `<th style="padding:${p3};text-align:center;font-size:${fs};">${monthLabel(sy,sm,i)}</th>`;
+  th += `<th style="padding:${p2};text-align:right;font-size:${fs};">누적납부</th>
+    <th style="padding:${p2};text-align:right;font-size:${fs};">미납</th></tr>`;
   document.getElementById('fHead').innerHTML = th;
 
   // BODY
@@ -2914,7 +2922,7 @@ function renderFTable(){
     const base = m.baseAmount || 0;
     const paidCount = m.paid.slice(0,cr).filter(Boolean).length;
     const memberPaid = base + paidCount * AMOUNT;
-    const memberExpected = cr * AMOUNT; // 이전납부는 별도 트래킹이므로 회차 기준만 미납 계산
+    const memberExpected = cr * AMOUNT;
     const memberUnpaid = Math.max(0, memberExpected - (paidCount * AMOUNT));
     totalPaid += memberPaid;
     totalExpected += memberExpected;
@@ -2922,32 +2930,36 @@ function renderFTable(){
 
     const rowBg = mi%2===0 ? '' : 'background:#FAFAF8;';
     tb += `<tr style="${rowBg}transition:background .15s;" onmouseover="this.style.background='var(--gold-pale)'" onmouseout="this.style.background='${mi%2===0?'white':'#FAFAF8'}'">
-      <td style="padding:9px 12px;font-weight:700;font-size:.8rem;white-space:nowrap;">${m.name}</td>`;
+      <td style="padding:${p};font-weight:700;font-size:${fs2};white-space:nowrap;">${m.name}</td>`;
 
-    // 이전납부(baseline) 셀 - 편집 모드에서 직접 수정 가능
-    if(isEditMode){
-      tb += `<td style="padding:6px 8px;text-align:right;">
-        <input type="number" value="${base}" min="0" step="10000"
-          onchange="updateBase(${mi},this.value)"
-          style="width:80px;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-family:'Noto Sans KR',sans-serif;font-size:.74rem;text-align:right;outline:none;"
-          onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'">
-        </td>`;
-    } else {
-      tb += `<td style="padding:9px 10px;text-align:right;font-size:.76rem;color:${base>0?'var(--navy)':'#ccc'};">${base>0?base.toLocaleString()+'원':'—'}</td>`;
+    // 이전납부 - 모바일에서 숨김
+    if(!isMobile){
+      if(isEditMode){
+        tb += `<td style="padding:6px 8px;text-align:right;">
+          <input type="number" value="${base}" min="0" step="10000"
+            onchange="updateBase(${mi},this.value)"
+            style="width:80px;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-family:'Noto Sans KR',sans-serif;font-size:.74rem;text-align:right;outline:none;"
+            onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'">
+          </td>`;
+      } else {
+        tb += `<td style="padding:${p2};text-align:right;font-size:.76rem;color:${base>0?'var(--navy)':'#ccc'};">${base>0?base.toLocaleString()+'원':'—'}</td>`;
+      }
     }
 
     for(let i=0;i<cr;i++){
       const isPaid = m.paid[i];
       const canToggle = isEditMode ? `onclick="togglePaid(${mi},${i})" style="cursor:pointer;"` : '';
-      tb += `<td style="text-align:center;padding:8px;" ${canToggle}>
-        <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:.75rem;background:${isPaid?'var(--sage-pale)':'var(--terra-pale)'};color:${isPaid?'var(--sage)':'var(--terra)'};font-weight:700;">
+      const sz = isMobile ? '20px' : '24px';
+      const fsz = isMobile ? '.68rem' : '.75rem';
+      tb += `<td style="text-align:center;padding:${isMobile?'6px 2px':'8px'};" ${canToggle}>
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:${sz};height:${sz};border-radius:50%;font-size:${fsz};background:${isPaid?'var(--sage-pale)':'var(--terra-pale)'};color:${isPaid?'var(--sage)':'var(--terra)'};font-weight:700;">
           ${isPaid?'✓':'✕'}
         </span></td>`;
     }
-    tb += `<td style="padding:9px 10px;text-align:right;font-weight:700;font-size:.8rem;color:var(--sage);">${memberPaid.toLocaleString()}원</td>
-      <td style="padding:9px 10px;text-align:right;font-size:.8rem;color:${memberUnpaid>0?'var(--terra)':'#aaa'};">${memberUnpaid>0?memberUnpaid.toLocaleString()+'원':'—'}</td>`;
+    tb += `<td style="padding:${p2};text-align:right;font-weight:700;font-size:${fs2};color:var(--sage);white-space:nowrap;">${isMobile ? (memberPaid/10000)+'만' : memberPaid.toLocaleString()+'원'}</td>
+      <td style="padding:${p2};text-align:right;font-size:${fs2};color:${memberUnpaid>0?'var(--terra)':'#aaa'};white-space:nowrap;">${memberUnpaid>0?(isMobile?(memberUnpaid/10000)+'만':memberUnpaid.toLocaleString()+'원'):'—'}</td>`;
     if(isEditMode){
-      tb += `<td style="padding:4px 6px;"><button onclick="deleteMember(${mi})" style="background:none;border:none;color:#ddd;cursor:pointer;font-size:.75rem;padding:2px 4px;border-radius:3px;" onmouseover="this.style.color='var(--terra)'" onmouseout="this.style.color='#ddd'">✕</button></td>`;
+      tb += `<td style="padding:4px ${isMobile?'2px':'6px'};"><button onclick="deleteMember(${mi})" style="background:none;border:none;color:#ddd;cursor:pointer;font-size:.75rem;padding:2px 4px;border-radius:3px;" onmouseover="this.style.color='var(--terra)'" onmouseout="this.style.color='#ddd'">✕</button></td>`;
     }
     tb += '</tr>';
   });
@@ -2957,15 +2969,17 @@ function renderFTable(){
   const totalUnpaid = totalExpected - fMembers.reduce((s,m)=>s+m.paid.slice(0,cr).filter(Boolean).length*AMOUNT,0);
   const rate = totalExpected > 0 ? Math.round((totalPaid - fMembers.reduce((s,m)=>s+(m.baseAmount||0),0)) / totalExpected * 100) : 0;
   let tf = `<tr style="background:var(--charcoal);color:var(--cream);">
-    <td style="padding:9px 12px;font-weight:700;font-size:.78rem;">합계</td>
-    <td style="padding:9px 10px;text-align:right;font-size:.75rem;color:#aaa;">${fMembers.reduce((s,m)=>s+(m.baseAmount||0),0).toLocaleString()}원</td>`;
+    <td style="padding:${p};font-weight:700;font-size:.78rem;">합계</td>`;
+  if(!isMobile){
+    tf += `<td style="padding:${p2};text-align:right;font-size:.75rem;color:#aaa;">${fMembers.reduce((s,m)=>s+(m.baseAmount||0),0).toLocaleString()}원</td>`;
+  }
   for(let i=0;i<cr;i++){
     const cnt = fMembers.filter(m=>m.paid[i]).length;
-    tf += `<td style="text-align:center;padding:8px;font-size:.75rem;color:#aaa;">${cnt}/${fMembers.length}</td>`;
+    tf += `<td style="text-align:center;padding:${isMobile?'6px 2px':'8px'};font-size:.75rem;color:#aaa;">${cnt}/${fMembers.length}</td>`;
   }
-  tf += `<td style="padding:9px 10px;text-align:right;font-weight:700;font-size:.82rem;color:var(--gold-light);">${totalPaid.toLocaleString()}원</td>
-    <td style="padding:9px 10px;text-align:right;font-weight:700;font-size:.82rem;color:#E8A882;">${totalUnpaid>0?totalUnpaid.toLocaleString()+'원':'—'}</td>`;
-  if(isEditMode) tf += '<td></td>';
+  tf += `<td style="padding:${p2};text-align:right;font-weight:700;font-size:${isMobile?'.76rem':'.82rem'};color:var(--gold-light);white-space:nowrap;">${isMobile?(totalPaid/10000)+'만원':totalPaid.toLocaleString()+'원'}</td>
+    <td style="padding:${p2};text-align:right;font-weight:700;font-size:${isMobile?'.76rem':'.82rem'};color:#E8A882;white-space:nowrap;">${totalUnpaid>0?(isMobile?(totalUnpaid/10000)+'만원':totalUnpaid.toLocaleString()+'원'):'—'}</td>`;
+  if(isEditMode) tf += `<td></td>`;
   tf += '</tr>';
   document.getElementById('fFoot').innerHTML = tf;
 
