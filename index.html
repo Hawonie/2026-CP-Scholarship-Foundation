@@ -3283,8 +3283,6 @@ window.addEventListener('load', async ()=>{
   renderQna();
   renderIdeas();
   renderIdeaRanking();
-  // DB에서 API 키 자동 복원
-  loadApiKeyFromDB();
 });
 
 // ═══ 다가오는 행사 KPI ═══
@@ -3704,6 +3702,7 @@ function collectData(){
     memoView: document.getElementById('memoView').innerHTML,
     memoEdit: document.getElementById('memoEdit').value,
     calDeletedIds: JSON.parse(localStorage.getItem('calDeletedIds')||'[]'),
+    gcal_api_key: localStorage.getItem('gcal_api_key') || '',
   };
 }
 
@@ -3745,6 +3744,17 @@ function applyData(d){
   if(d.memoView) document.getElementById('memoView').innerHTML = d.memoView;
   if(d.memoEdit) document.getElementById('memoEdit').value     = d.memoEdit;
   if(d.calDeletedIds) localStorage.setItem('calDeletedIds', JSON.stringify(d.calDeletedIds));
+  if(d.gcal_api_key){
+    const key = typeof d.gcal_api_key === 'string' ? d.gcal_api_key : String(d.gcal_api_key);
+    if(key){
+      localStorage.setItem('gcal_api_key', key);
+      setTimeout(()=>{
+        const input = document.getElementById('gcalApiKey');
+        if(input) input.value = key;
+        fetchGcalEvents(key);
+      }, 300);
+    }
+  }
 }
 
 // ── 저장 (DB + localStorage 동시) ──
@@ -3772,12 +3782,9 @@ async function lsLoad(){
       cache: 'no-store',
       headers: { 'Cache-Control': 'no-cache' }
     });
-    toast('📡 서버 응답: ' + res.status);
     const text = await res.text();
-    alert('서버응답:' + res.status + '\n내용앞50:' + text.slice(0,50));
     const json = JSON.parse(text);
     const keys = json.data ? Object.keys(json.data).length : 0;
-    toast('🔑 키 개수: ' + keys);
     if(json.success && json.data && keys > 0){
       const merged = {};
       Object.entries(json.data).forEach(([k,v])=>{
