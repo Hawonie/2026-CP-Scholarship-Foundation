@@ -3768,8 +3768,6 @@ async function lsLoad(){
     const res  = await fetch(`${BACKEND_URL}/data`);
     const json = await res.json();
     if(json.success && json.data && Object.keys(json.data).length > 0){
-      // DB에서 받은 데이터는 {key: value} 형태
-      // value가 객체인 경우 그대로, 문자열인 경우 파싱
       const merged = {};
       Object.entries(json.data).forEach(([k,v])=>{
         merged[k] = (typeof v === 'string') ? JSON.parse(v) : v;
@@ -3778,8 +3776,11 @@ async function lsLoad(){
       localStorage.setItem(LS_KEY, JSON.stringify(merged));
       toast('☁️ DB에서 데이터를 불러왔습니다');
       return;
+    } else {
+      toast('⚠️ DB 데이터 없음 → 로컬 사용');
     }
   } catch(e){
+    toast('⚠️ DB 연결 실패: ' + e.message);
     console.warn('DB 불러오기 실패, localStorage 사용:', e);
   }
   // localStorage 폴백
