@@ -2390,7 +2390,10 @@ async function saveApiKeyToDB(key){
 
 async function loadApiKeyFromDB(){
   try {
-    const res  = await fetch(`${BACKEND_URL}/data`);
+    const res  = await fetch(`${BACKEND_URL}/data?t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' }
+    });
     const json = await res.json();
     if(json.success && json.data?.gcal_api_key){
       const key = typeof json.data.gcal_api_key === 'string'
@@ -3765,9 +3768,17 @@ function lsSave(){
 // ── 불러오기 (DB 우선, 실패 시 localStorage) ──
 async function lsLoad(){
   try {
-    const res  = await fetch(`${BACKEND_URL}/data`);
-    const json = await res.json();
-    if(json.success && json.data && Object.keys(json.data).length > 0){
+    const res  = await fetch(`${BACKEND_URL}/data?t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' }
+    });
+    toast('📡 서버 응답: ' + res.status);
+    const text = await res.text();
+    toast('📦 데이터 길이: ' + text.length);
+    const json = JSON.parse(text);
+    const keys = json.data ? Object.keys(json.data).length : 0;
+    toast('🔑 키 개수: ' + keys);
+    if(json.success && json.data && keys > 0){
       const merged = {};
       Object.entries(json.data).forEach(([k,v])=>{
         merged[k] = (typeof v === 'string') ? JSON.parse(v) : v;
