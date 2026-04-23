@@ -2293,6 +2293,7 @@ function connectGcal(){
   const key = document.getElementById('gcalApiKey').value.trim();
   if(!key){ toast('API 키를 입력해주세요'); return; }
   localStorage.setItem('gcal_api_key', key);
+  saveApiKeyToDB(key); // DB에도 저장
   fetchGcalEvents(key);
 }
 
@@ -2375,6 +2376,35 @@ function disconnectGcal(){
     }, 500);
   }
 })();
+
+// API 키 DB 저장/복원
+async function saveApiKeyToDB(key){
+  try {
+    await fetch(`${BACKEND_API}/data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { gcal_api_key: key } })
+    });
+  } catch(e){ console.warn('API 키 DB 저장 실패:', e); }
+}
+
+async function loadApiKeyFromDB(){
+  try {
+    const res  = await fetch(`${BACKEND_API}/data`);
+    const json = await res.json();
+    if(json.success && json.data?.gcal_api_key){
+      const key = typeof json.data.gcal_api_key === 'string'
+        ? json.data.gcal_api_key
+        : json.data.gcal_api_key;
+      if(key){
+        localStorage.setItem('gcal_api_key', key);
+        const input = document.getElementById('gcalApiKey');
+        if(input) input.value = key;
+        fetchGcalEvents(key);
+      }
+    }
+  } catch(e){ console.warn('API 키 DB 불러오기 실패:', e); }
+}
 
 // ── TEMPLATES ──
 // 기본 템플릿 메타 정보 (id·name 목록) - lsLoad 복원 기준
@@ -3250,6 +3280,8 @@ window.addEventListener('load', async ()=>{
   renderQna();
   renderIdeas();
   renderIdeaRanking();
+  // DB에서 API 키 자동 복원
+  loadApiKeyFromDB();
 });
 
 // ═══ 다가오는 행사 KPI ═══
