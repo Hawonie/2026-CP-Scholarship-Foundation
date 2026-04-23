@@ -1631,7 +1631,7 @@ function saveMemo(){ const v=document.getElementById('memoEdit').value; document
 function cancelMemo(){ document.getElementById('memoView').style.display='block'; document.getElementById('memoEdit').style.display='none'; document.getElementById('memoActions').style.display='none'; }
 
 // ── TOAST ──
-function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.style.opacity='1'; clearTimeout(t._t); t._t=setTimeout(()=>t.style.opacity='0',2000); }
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.style.opacity='1'; clearTimeout(t._t); t._t=setTimeout(()=>t.style.opacity='0',5000); }
 
 // ═══ 간트차트 (캘린더 연동) ═══
 const CAT_STYLE = {
@@ -3774,7 +3774,7 @@ async function lsLoad(){
     });
     toast('📡 서버 응답: ' + res.status);
     const text = await res.text();
-    toast('📦 내용: ' + text.slice(0,50));
+    alert('서버응답:' + res.status + '\n내용앞50:' + text.slice(0,50));
     const json = JSON.parse(text);
     const keys = json.data ? Object.keys(json.data).length : 0;
     toast('🔑 키 개수: ' + keys);
