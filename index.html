@@ -2380,7 +2380,7 @@ function disconnectGcal(){
 // API 키 DB 저장/복원
 async function saveApiKeyToDB(key){
   try {
-    await fetch(`${BACKEND_API}/data`, {
+    await fetch(`${BACKEND_URL}/data`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data: { gcal_api_key: key } })
@@ -2390,7 +2390,7 @@ async function saveApiKeyToDB(key){
 
 async function loadApiKeyFromDB(){
   try {
-    const res  = await fetch(`${BACKEND_API}/data`);
+    const res  = await fetch(`${BACKEND_URL}/data`);
     const json = await res.json();
     if(json.success && json.data?.gcal_api_key){
       const key = typeof json.data.gcal_api_key === 'string'
@@ -3674,7 +3674,6 @@ document.addEventListener('click', e=>{
 
 // ═══ localStorage 저장/로드 ═══
 const LS_KEY = 'cp_dashboard_v1';
-const BACKEND_API = 'https://cp-scholarship-backend-production.up.railway.app';
 
 // 데이터 수집 함수 (저장할 데이터 객체 반환)
 function collectData(){
@@ -3752,7 +3751,7 @@ function lsSave(){
     // localStorage 백업
     localStorage.setItem(LS_KEY, JSON.stringify(data));
     // DB 저장
-    fetch(`${BACKEND_API}/data`, {
+    fetch(`${BACKEND_URL}/data`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data })
@@ -3767,7 +3766,7 @@ function lsSave(){
 async function lsLoad(){
   try {
     // DB에서 먼저 시도
-    const res = await fetch(`${BACKEND_API}/data`);
+    const res = await fetch(`${BACKEND_URL}/data`);
     const json = await res.json();
     if(json.success && Object.keys(json.data).length > 0){
       // DB 데이터를 하나의 객체로 합치기
