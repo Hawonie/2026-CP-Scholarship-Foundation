@@ -305,11 +305,11 @@ header{background:var(--charcoal);padding:18px 44px;display:flex;justify-content
 
   /* 장학회비 테이블 - 가로 스크롤 */
   #fTableWrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-  #fTable{font-size:.66rem;min-width:480px;}
+  #fTable{font-size:.66rem;}
   #fAddRow{flex-wrap:wrap;gap:6px;}
 
   /* 장학회비 탭 2컬럼 → 1컬럼 */
-  #tab-fund > div[style*="grid-template-columns:1.3fr"]{
+  #fundLayout{
     grid-template-columns:1fr !important;
   }
 
@@ -715,6 +715,20 @@ header{background:var(--charcoal);padding:18px 44px;display:flex;justify-content
   </div>
 </div>
 
+<!-- 캘린더 날짜 일정 상세 팝업 -->
+<div class="overlay" id="calDayModal" onclick="if(event.target===this)closeCalDayModal()">
+  <div class="mbox" style="width:min(380px,calc(100vw - 32px));text-align:left;max-height:80vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div>
+        <div style="font-family:'DM Serif Display',serif;font-size:1.1rem;" id="calDayModalDate"></div>
+        <div style="font-size:.72rem;color:#aaa;margin-top:2px;" id="calDayModalCount"></div>
+      </div>
+      <button onclick="closeCalDayModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#aaa;padding:4px 8px;border-radius:5px;" onmouseover="this.style.background='var(--terra-pale)'" onmouseout="this.style.background='none'">✕</button>
+    </div>
+    <div id="calDayModalList"></div>
+  </div>
+</div>
+
 <!-- 간트 일정 추가/수정 모달 -->
 <div class="overlay" id="ganttModal">
   <div class="mbox" style="width:460px;max-width:96vw;text-align:left;">
@@ -887,7 +901,7 @@ header{background:var(--charcoal);padding:18px 44px;display:flex;justify-content
     </div>
   </div>
 
-  <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-bottom:20px;">
+  <div id="fundLayout" style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-bottom:20px;">
 
     <!-- 좌: 납부 스프레드시트 -->
     <div class="card" style="padding:20px;">
@@ -916,7 +930,7 @@ header{background:var(--charcoal);padding:18px 44px;display:flex;justify-content
 
       <!-- 테이블 -->
       <div style="overflow-x:auto;border-radius:10px;border:1px solid var(--border);">
-        <table id="fTable" style="width:100%;border-collapse:collapse;font-size:.76rem;min-width:400px;">
+        <table id="fTable" style="width:100%;border-collapse:collapse;font-size:.76rem;">
           <thead id="fHead"></thead>
           <tbody id="fBody"></tbody>
           <tfoot id="fFoot"></tfoot>
@@ -2130,7 +2144,9 @@ function renderCal(){
 
     const hname = HOLIDAYS[ds] ? `<div class="hname">${HOLIDAYS[ds]}</div>` : '';
     const today_label = isTd ? `<div style="font-size:.58rem;font-weight:700;color:var(--gold);letter-spacing:.04em;margin-bottom:2px;">Today</div>` : '';
-    let ev=''; (calEv[ds]||[]).forEach(e=>{ev+=`<div class="cev ${e.c}">${e.t}</div>`;});
+    let ev=''; (calEv[ds]||[]).forEach(e=>{
+      ev+=`<div class="cev ${e.c}" onclick="openCalDayModal('${ds}')" style="cursor:pointer;">${e.t}</div>`;
+    });
     html+=`<div class="${cls}"><div class="dnum">${d}</div>${today_label}${hname}${ev}</div>`;
   }
 
@@ -2145,6 +2161,41 @@ function renderCal(){
 }
 function chMo(d){cM+=d;if(cM>11){cM=0;cY++;}if(cM<0){cM=11;cY--;}renderCal();}
 renderCal();
+
+// 캘린더 날짜 일정 상세 팝업
+function openCalDayModal(ds){
+  const evs = calEv[ds] || [];
+  if(evs.length === 0) return;
+
+  const [y, m, d] = ds.split('-');
+  const dateObj = new Date(ds);
+  const WD = ['일','월','화','수','목','금','토'];
+  const dow = WD[dateObj.getDay()];
+  const MN = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+  document.getElementById('calDayModalDate').textContent = `${MN[parseInt(m)-1]} ${parseInt(d)}일 (${dow})`;
+  document.getElementById('calDayModalCount').textContent = `일정 ${evs.length}개`;
+
+  const CAT_LABEL = { eg:'기업 섭외·미팅', ep:'행사 준비', em:'내부 회의', ms:'마일스톤', other:'기타' };
+  const CAT_COLOR = { eg:'var(--gold)', ep:'var(--sage)', em:'var(--terra)', ms:'var(--navy)', other:'#888' };
+
+  document.getElementById('calDayModalList').innerHTML = evs.map(e => {
+    const color = CAT_COLOR[e.c] || '#888';
+    const label = CAT_LABEL[e.c] || e.c || '';
+    return `<div style="display:flex;align-items:flex-start;gap:10px;padding:11px 0;border-bottom:1px solid var(--border);">
+      <div style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0;margin-top:4px;"></div>
+      <div style="flex:1;">
+        <div style="font-size:.88rem;font-weight:600;line-height:1.5;color:var(--charcoal);">${e.t}</div>
+        <div style="font-size:.7rem;color:#aaa;margin-top:2px;">${label}</div>
+      </div>
+    </div>`;
+  }).join('').replace(/border-bottom[^;]+;(?=[^<]*<\/div>\s*$)/, '');  // 마지막 구분선 제거
+
+  document.getElementById('calDayModal').classList.add('show');
+}
+function closeCalDayModal(){
+  document.getElementById('calDayModal').classList.remove('show');
+}
 
 // 우측 일정 목록 렌더링
 function renderEventList(){
