@@ -2286,48 +2286,79 @@ let oauthSession = localStorage.getItem('oauth_session') || null;
 
 function subscribeCalendar(e){
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  if(!isMobile) return; // PC는 기본 링크 동작 그대로
+
+  // PC는 기존 링크 동작 유지
+  if(!isMobile) return;
 
   e.preventDefault();
-  const calUrl = 'https://calendar.google.com/calendar/u/0?cid=YzQ5ZGU4NWQzNzBmYzI3YzY5YThkNDE4Y2QyNmVkZjgxMzhkMjNkNGZkMDJkNmRkMGVlZTkxMjdjNzRkMTFkNkBncm91cC5jYWxlbmRhci5nb29nbGUuY29t';
 
-  // 링크 자동 복사
-  navigator.clipboard.writeText(calUrl).then(() => {
-    // 안내 모달 표시
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-      position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);
-      z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;
-    `;
-    modal.innerHTML = `
-      <div style="background:#2C2C2E;border:1px solid #444;border-radius:16px;padding:24px;max-width:340px;width:100%;font-family:'Noto Sans KR',sans-serif;">
-        <div style="font-size:1.4rem;margin-bottom:12px;">📋</div>
-        <div style="font-size:.95rem;font-weight:700;color:#E8CC7A;margin-bottom:12px;">링크가 복사됐어요!</div>
-        <div style="font-size:.78rem;color:#aaa;line-height:1.8;margin-bottom:20px;">
-          Google Calendar 앱에서 아래 순서로 추가해주세요:<br>
-          <span style="color:#ccc;">① 앱 하단 <b>+</b> 버튼 탭</span><br>
-          <span style="color:#ccc;">② <b>다른 캘린더 구독</b> 선택</span><br>
-          <span style="color:#ccc;">③ 복사된 링크 붙여넣기</span>
-        </div>
-        <div style="display:flex;gap:10px;">
-          <button onclick="window.open('https://calendar.google.com/calendar/r','_blank');this.closest('div[style*=fixed]').remove();"
-            style="flex:1;padding:10px;background:#4285F4;color:white;border:none;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
-            앱 열기
-          </button>
-          <button onclick="this.closest('div[style*=fixed]').remove();"
-            style="flex:1;padding:10px;background:#3A3A3C;color:#ccc;border:none;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
-            닫기
-          </button>
-        </div>
+  // 이메일 입력 모달
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);
+    z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;
+  `;
+  modal.innerHTML = `
+    <div style="background:#2C2C2E;border:1px solid #444;border-radius:16px;padding:24px;max-width:340px;width:100%;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:1.4rem;margin-bottom:8px;">📅</div>
+      <div style="font-size:.95rem;font-weight:700;color:#E8CC7A;margin-bottom:6px;">캘린더 초대 받기</div>
+      <div style="font-size:.75rem;color:#aaa;margin-bottom:16px;line-height:1.6;">
+        이메일을 입력하면 Google Calendar 초대 메일을 보내드려요.<br>수락하면 자동으로 캘린더가 추가됩니다!
       </div>
-    `;
-    document.body.appendChild(modal);
-    modal.addEventListener('click', (ev) => { if(ev.target === modal) modal.remove(); });
-  }).catch(() => {
-    // clipboard API 실패 시 toast로 대체
-    toast('📋 링크를 수동으로 복사해주세요');
-    window.open('https://calendar.google.com/calendar/u/0?cid=YzQ5ZGU4NWQzNzBmYzI3YzY5YThkNDE4Y2QyNmVkZjgxMzhkMjNkNGZkMDJkNmRkMGVlZTkxMjdjNzRkMTFkNkBncm91cC5jYWxlbmRhci5nb29nbGUuY29t', '_blank');
-  });
+      <input id="inviteEmail" type="email" placeholder="example@gmail.com"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #555;border-radius:8px;
+        background:#1A1A1A;color:#ccc;font-family:'Noto Sans KR',sans-serif;font-size:.82rem;outline:none;margin-bottom:14px;"
+        onfocus="this.style.borderColor='#E8CC7A'" onblur="this.style.borderColor='#555'">
+      <div id="inviteMsg" style="font-size:.73rem;color:#E8A882;margin-bottom:10px;min-height:18px;"></div>
+      <div style="display:flex;gap:10px;">
+        <button id="inviteBtn" onclick="sendCalendarInvite()"
+          style="flex:1;padding:10px;background:#E8CC7A;color:#1A1A1A;border:none;border-radius:8px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+          초대 보내기
+        </button>
+        <button onclick="this.closest('div[style*=fixed]').remove();"
+          style="flex:1;padding:10px;background:#3A3A3C;color:#ccc;border:none;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+          닫기
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', (ev) => { if(ev.target === modal) modal.remove(); });
+  setTimeout(() => document.getElementById('inviteEmail')?.focus(), 100);
+}
+
+async function sendCalendarInvite(){
+  const email = document.getElementById('inviteEmail')?.value.trim();
+  const msg   = document.getElementById('inviteMsg');
+  const btn   = document.getElementById('inviteBtn');
+  if(!email || !email.includes('@')){ msg.textContent = '올바른 이메일을 입력해주세요'; return; }
+  if(!oauthSession){ msg.textContent = '구글 계정 연동 후 이용해주세요'; return; }
+
+  btn.textContent = '전송 중...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/calendar/invite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session: oauthSession, email })
+    });
+    const data = await res.json();
+    if(data.success){
+      msg.style.color = '#7EC8A4';
+      msg.textContent = data.already ? '이미 초대된 이메일입니다 ✓' : '초대 메일을 보냈습니다! 📬';
+      btn.textContent = '완료 ✓';
+      setTimeout(() => document.querySelector('div[style*=fixed]')?.remove(), 2000);
+    } else {
+      msg.textContent = '오류: ' + (data.error || '전송 실패');
+      btn.textContent = '초대 보내기';
+      btn.disabled = false;
+    }
+  } catch(e) {
+    msg.textContent = '네트워크 오류, 다시 시도해주세요';
+    btn.textContent = '초대 보내기';
+    btn.disabled = false;
+  }
 }
 
 function oauthLogin(){
