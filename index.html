@@ -42,6 +42,8 @@ header{background:var(--charcoal);padding:18px 44px;display:flex;justify-content
 .tab-btn{padding:14px 24px;border:none;background:none;cursor:pointer;font-family:'Noto Sans KR',sans-serif;font-size:.84rem;font-weight:500;color:#999;border-bottom:3px solid transparent;margin-bottom:-1px;transition:all .2s;}
 .tab-btn:hover{color:var(--charcoal);}
 .tab-btn.active{color:var(--charcoal);border-bottom-color:var(--gold);font-weight:700;}
+.tab-btn.drag-over{border-bottom:3px solid var(--terra);opacity:.7;}
+.tab-btn.dragging{opacity:.4;}
 
 /* MAIN */
 .main{padding:34px 44px;max-width:1400px;margin:0 auto;}
@@ -442,21 +444,31 @@ header{background:var(--charcoal);padding:18px 44px;display:flex;justify-content
 
     <div class="chip" id="lsChip" style="display:none;">💾 <b style="color:#7EC8A0;">자동저장 ON</b></div>
     <div class="edit-badge" id="editBadge">✏️ 편집 모드</div>
+
+    <!-- 폰트 크기 조절 -->
+    <div style="display:flex;align-items:center;gap:4px;border:1px solid #444;border-radius:20px;padding:3px 8px;background:#252525;">
+      <button onclick="adjustFont(-1)" title="글자 작게"
+        style="border:none;background:none;color:#bbb;cursor:pointer;font-size:.9rem;padding:0 3px;font-family:'Noto Sans KR',sans-serif;line-height:1;">A-</button>
+      <span id="fontSizeLabel" style="font-size:.65rem;color:#666;min-width:24px;text-align:center;">기본</span>
+      <button onclick="adjustFont(1)" title="글자 크게"
+        style="border:none;background:none;color:#bbb;cursor:pointer;font-size:1rem;padding:0 3px;font-family:'Noto Sans KR',sans-serif;line-height:1;font-weight:700;">A+</button>
+    </div>
+
     <button class="auth-btn mode-btn" id="modeBtn" onclick="toggleMode()" style="display:none;">👁 보기 모드로</button>
     <button class="auth-btn off" id="authBtn" onclick="authBtnClick()">🔒 로그인</button>
     <button onclick="lsReset()" id="resetBtn" style="display:none;padding:6px 12px;border-radius:20px;font-size:.7rem;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;border:1px solid #555;background:transparent;color:#888;transition:all .2s;" onmouseover="this.style.borderColor='var(--terra)';this.style.color='var(--terra)'" onmouseout="this.style.borderColor='#555';this.style.color='#888'">🗑 초기화</button>
   </div>
 </header>
 
-<nav class="nav-tabs">
-  <button class="tab-btn active" onclick="switchTab('overview',this)">📊 개요</button>
-  <button class="tab-btn" onclick="switchTab('calendar',this)">📅 캘린더</button>
-  <button class="tab-btn" onclick="switchTab('gantt',this)">📈 간트차트</button>
-  <button class="tab-btn" onclick="switchTab('template',this)">💬 소통 템플릿</button>
-  <button class="tab-btn" onclick="switchTab('fund',this)">💰 장학회비 현황</button>
-  <button class="tab-btn" onclick="switchTab('sponsor',this)">🏢 스폰서 기업</button>
-  <button class="tab-btn" onclick="switchTab('qna',this)">💭 Q&A</button>
-  <button class="tab-btn" onclick="switchTab('ideas',this)">💡 아이디어</button>
+<nav class="nav-tabs" id="navTabs">
+  <button class="tab-btn active" data-tab="overview" onclick="switchTab('overview',this)" draggable="true">📊 개요</button>
+  <button class="tab-btn" data-tab="calendar" onclick="switchTab('calendar',this)" draggable="true">📅 캘린더</button>
+  <button class="tab-btn" data-tab="gantt" onclick="switchTab('gantt',this)" draggable="true">📈 간트차트</button>
+  <button class="tab-btn" data-tab="template" onclick="switchTab('template',this)" draggable="true">💬 소통 템플릿</button>
+  <button class="tab-btn" data-tab="fund" onclick="switchTab('fund',this)" draggable="true">💰 장학회비 현황</button>
+  <button class="tab-btn" data-tab="sponsor" onclick="switchTab('sponsor',this)" draggable="true">🏢 스폰서 기업</button>
+  <button class="tab-btn" data-tab="qna" onclick="switchTab('qna',this)" draggable="true">💭 Q&A</button>
+  <button class="tab-btn" data-tab="ideas" onclick="switchTab('ideas',this)" draggable="true">💡 아이디어</button>
 </nav>
 
 <main class="main">
@@ -1421,6 +1433,97 @@ function updateDdayChip(){
 
 // ── TABS ──
 const GCAL_ID = 'c49de85d370fc27c69a8d418cd26edf8138d23d4fd02d6dd0eee9127c74d11d6@group.calendar.google.com';
+// ── 폰트 크기 조절 ───────────────────────────────────────────────────────────
+const FONT_STEPS = [
+  { label:'소', size:'14px' },
+  { label:'기본', size:'16px' },
+  { label:'중', size:'18px' },
+  { label:'대', size:'20px' },
+  { label:'특대', size:'22px' },
+];
+let fontStep = parseInt(localStorage.getItem('fontStep') ?? '1');
+
+function applyFont(step){
+  fontStep = Math.max(0, Math.min(FONT_STEPS.length - 1, step));
+  document.documentElement.style.fontSize = FONT_STEPS[fontStep].size;
+  const label = document.getElementById('fontSizeLabel');
+  if(label) label.textContent = FONT_STEPS[fontStep].label;
+  localStorage.setItem('fontStep', fontStep);
+}
+
+function adjustFont(dir){ applyFont(fontStep + dir); }
+
+applyFont(fontStep);
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── 탭 드래그 순서 변경 ──────────────────────────────────────────────────────
+(function initTabDrag(){
+  const nav = document.getElementById('navTabs');
+  let dragSrc = null;
+
+  function saveTabOrder(){
+    const order = [...nav.querySelectorAll('.tab-btn')].map(b => b.dataset.tab);
+    localStorage.setItem('tabOrder', JSON.stringify(order));
+  }
+
+  function applyTabOrder(){
+    const saved = localStorage.getItem('tabOrder');
+    if(!saved) return;
+    try {
+      const order = JSON.parse(saved);
+      order.forEach(tabId => {
+        const btn = nav.querySelector(`[data-tab="${tabId}"]`);
+        if(btn) nav.appendChild(btn);
+      });
+    } catch(e){}
+  }
+
+  nav.addEventListener('dragstart', e => {
+    dragSrc = e.target.closest('.tab-btn');
+    if(!dragSrc) return;
+    dragSrc.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+
+  nav.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const target = e.target.closest('.tab-btn');
+    if(!target || target === dragSrc) return;
+    nav.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('drag-over'));
+    target.classList.add('drag-over');
+  });
+
+  nav.addEventListener('dragleave', e => {
+    const target = e.target.closest('.tab-btn');
+    if(target) target.classList.remove('drag-over');
+  });
+
+  nav.addEventListener('drop', e => {
+    e.preventDefault();
+    const target = e.target.closest('.tab-btn');
+    if(!target || target === dragSrc) return;
+    // dragSrc를 target 앞에 삽입
+    const btns = [...nav.querySelectorAll('.tab-btn')];
+    const srcIdx = btns.indexOf(dragSrc);
+    const tgtIdx = btns.indexOf(target);
+    if(srcIdx < tgtIdx) nav.insertBefore(dragSrc, target.nextSibling);
+    else nav.insertBefore(dragSrc, target);
+    saveTabOrder();
+  });
+
+  nav.addEventListener('dragend', () => {
+    nav.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.remove('dragging', 'drag-over');
+    });
+    dragSrc = null;
+  });
+
+  // 저장된 순서 복원
+  applyTabOrder();
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
 function switchTab(n,el){
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -2299,24 +2402,23 @@ function subscribeCalendar(e){
     z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;
   `;
   modal.innerHTML = `
-    <div style="background:#2C2C2E;border:1px solid #444;border-radius:16px;padding:24px;max-width:340px;width:100%;font-family:'Noto Sans KR',sans-serif;">
-      <div style="font-size:1.4rem;margin-bottom:8px;">📅</div>
-      <div style="font-size:.95rem;font-weight:700;color:#E8CC7A;margin-bottom:6px;">캘린더 초대 받기</div>
-      <div style="font-size:.75rem;color:#aaa;margin-bottom:16px;line-height:1.6;">
-        이메일을 입력하면 Google Calendar 초대 메일을 보내드려요.<br>수락하면 자동으로 캘린더가 추가됩니다!
+    <div style="background:#2C2C2E;border:1px solid #444;border-radius:14px;padding:18px 20px;max-width:280px;width:100%;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:.88rem;font-weight:700;color:#E8CC7A;margin-bottom:5px;">📅 캘린더 초대 받기</div>
+      <div style="font-size:.72rem;color:#aaa;margin-bottom:12px;line-height:1.5;">
+        이메일 입력 시 Google Calendar 초대 메일을 보내드려요.
       </div>
       <input id="inviteEmail" type="email" placeholder="example@gmail.com"
-        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #555;border-radius:8px;
-        background:#1A1A1A;color:#ccc;font-family:'Noto Sans KR',sans-serif;font-size:.82rem;outline:none;margin-bottom:14px;"
+        style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #555;border-radius:7px;
+        background:#1A1A1A;color:#ccc;font-family:'Noto Sans KR',sans-serif;font-size:.78rem;outline:none;margin-bottom:10px;"
         onfocus="this.style.borderColor='#E8CC7A'" onblur="this.style.borderColor='#555'">
-      <div id="inviteMsg" style="font-size:.73rem;color:#E8A882;margin-bottom:10px;min-height:18px;"></div>
-      <div style="display:flex;gap:10px;">
+      <div id="inviteMsg" style="font-size:.7rem;color:#E8A882;margin-bottom:8px;min-height:16px;"></div>
+      <div style="display:flex;gap:8px;">
         <button id="inviteBtn" onclick="sendCalendarInvite()"
-          style="flex:1;padding:10px;background:#E8CC7A;color:#1A1A1A;border:none;border-radius:8px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+          style="flex:1;padding:8px;background:#E8CC7A;color:#1A1A1A;border:none;border-radius:7px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
           초대 보내기
         </button>
         <button onclick="this.closest('div[style*=fixed]').remove();"
-          style="flex:1;padding:10px;background:#3A3A3C;color:#ccc;border:none;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+          style="flex:1;padding:8px;background:#3A3A3C;color:#ccc;border:none;border-radius:7px;font-size:.74rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
           닫기
         </button>
       </div>
