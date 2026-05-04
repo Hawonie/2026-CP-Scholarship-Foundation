@@ -563,7 +563,7 @@ header{background:var(--charcoal);padding:18px 44px;display:flex;justify-content
       <button class="cal-nbtn" onclick="chMo(-1)">←</button>
       <span class="cal-mtitle" id="calTitle"></span>
       <button class="cal-nbtn" onclick="chMo(1)">→</button>
-      <a class="gcal" href="https://calendar.google.com/calendar/u/0?cid=YzQ5ZGU4NWQzNzBmYzI3YzY5YThkNDE4Y2QyNmVkZjgxMzhkMjNkNGZkMDJkNmRkMGVlZTkxMjdjNzRkMTFkNkBncm91cC5jYWxlbmRhci5nb29nbGUuY29t" target="_blank" style="background:var(--gold);color:var(--charcoal);">📅 캘린더 구독하기</a>
+      <a class="gcal" onclick="subscribeCalendar(event)" href="https://calendar.google.com/calendar/u/0?cid=YzQ5ZGU4NWQzNzBmYzI3YzY5YThkNDE4Y2QyNmVkZjgxMzhkMjNkNGZkMDJkNmRkMGVlZTkxMjdjNzRkMTFkNkBncm91cC5jYWxlbmRhci5nb29nbGUuY29t" target="_blank" style="background:var(--gold);color:var(--charcoal);cursor:pointer;">📅 캘린더 구독하기</a>
       <a class="gcal" href="https://calendar.google.com/calendar/r" target="_blank">🔗 Google Calendar 열기</a>
     </div>
   </div>
@@ -2284,6 +2284,52 @@ let oauthSession = localStorage.getItem('oauth_session') || null;
   }
 })();
 
+function subscribeCalendar(e){
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if(!isMobile) return; // PC는 기본 링크 동작 그대로
+
+  e.preventDefault();
+  const calUrl = 'https://calendar.google.com/calendar/u/0?cid=YzQ5ZGU4NWQzNzBmYzI3YzY5YThkNDE4Y2QyNmVkZjgxMzhkMjNkNGZkMDJkNmRkMGVlZTkxMjdjNzRkMTFkNkBncm91cC5jYWxlbmRhci5nb29nbGUuY29t';
+
+  // 링크 자동 복사
+  navigator.clipboard.writeText(calUrl).then(() => {
+    // 안내 모달 표시
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);
+      z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;
+    `;
+    modal.innerHTML = `
+      <div style="background:#2C2C2E;border:1px solid #444;border-radius:16px;padding:24px;max-width:340px;width:100%;font-family:'Noto Sans KR',sans-serif;">
+        <div style="font-size:1.4rem;margin-bottom:12px;">📋</div>
+        <div style="font-size:.95rem;font-weight:700;color:#E8CC7A;margin-bottom:12px;">링크가 복사됐어요!</div>
+        <div style="font-size:.78rem;color:#aaa;line-height:1.8;margin-bottom:20px;">
+          Google Calendar 앱에서 아래 순서로 추가해주세요:<br>
+          <span style="color:#ccc;">① 앱 하단 <b>+</b> 버튼 탭</span><br>
+          <span style="color:#ccc;">② <b>다른 캘린더 구독</b> 선택</span><br>
+          <span style="color:#ccc;">③ 복사된 링크 붙여넣기</span>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button onclick="window.open('https://calendar.google.com/calendar/r','_blank');this.closest('div[style*=fixed]').remove();"
+            style="flex:1;padding:10px;background:#4285F4;color:white;border:none;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+            앱 열기
+          </button>
+          <button onclick="this.closest('div[style*=fixed]').remove();"
+            style="flex:1;padding:10px;background:#3A3A3C;color:#ccc;border:none;border-radius:8px;font-size:.78rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+            닫기
+          </button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', (ev) => { if(ev.target === modal) modal.remove(); });
+  }).catch(() => {
+    // clipboard API 실패 시 toast로 대체
+    toast('📋 링크를 수동으로 복사해주세요');
+    window.open('https://calendar.google.com/calendar/u/0?cid=YzQ5ZGU4NWQzNzBmYzI3YzY5YThkNDE4Y2QyNmVkZjgxMzhkMjNkNGZkMDJkNmRkMGVlZTkxMjdjNzRkMTFkNkBncm91cC5jYWxlbmRhci5nb29nbGUuY29t', '_blank');
+  });
+}
+
 function oauthLogin(){
   fetch(`${BACKEND_URL}/auth/google`)
     .then(r=>r.json())
@@ -3738,51 +3784,69 @@ function lsSave(){
     const data = collectData();
     // localStorage 백업
     localStorage.setItem(LS_KEY, JSON.stringify(data));
-    // DB 저장
-    fetch(`${BACKEND_URL}/data`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data })
-    })
-    .then(r=>r.json())
-    .then(res=>{ if(!res.success) console.warn('DB 저장 실패:', res); })
-    .catch(e=>console.warn('DB 저장 오류:', e));
+    // DB 저장 (실패 시 최대 3회 재시도)
+    const tryDbSave = (attempt=1) => {
+      fetch(`${BACKEND_URL}/data`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data })
+      })
+      .then(r=>r.json())
+      .then(res=>{ if(!res.success) console.warn('DB 저장 실패:', res); })
+      .catch(e=>{
+        if(attempt < 3) setTimeout(()=>tryDbSave(attempt+1), 3000 * attempt);
+        else console.warn('DB 저장 오류 (3회 실패):', e);
+      });
+    };
+    tryDbSave();
   } catch(e){ console.warn('저장 실패:', e); }
 }
 
-// ── 불러오기 (DB 우선, 실패 시 localStorage) ──
+// ── 불러오기 (DB 우선, 실패 시 재시도 후 localStorage) ──
 async function lsLoad(){
-  try {
-    const res  = await fetch(`${BACKEND_URL}/data?t=${Date.now()}`, {
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache' }
-    });
-    const text = await res.text();
-    const json = JSON.parse(text);
-    const keys = json.data ? Object.keys(json.data).length : 0;
-    if(json.success && json.data && keys > 0){
-      const merged = {};
-      Object.entries(json.data).forEach(([k,v])=>{
-        merged[k] = (typeof v === 'string') ? JSON.parse(v) : v;
+  const tryLoad = async (attempt=1) => {
+    try {
+      const res  = await fetch(`${BACKEND_URL}/data?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' }
       });
-      applyData(merged);
-      localStorage.setItem(LS_KEY, JSON.stringify(merged));
-      toast('☁️ DB에서 데이터를 불러왔습니다');
-      return;
-    } else {
-      toast('⚠️ DB 데이터 없음 → 로컬 사용');
+      const text = await res.text();
+      const json = JSON.parse(text);
+      const keys = json.data ? Object.keys(json.data).length : 0;
+      if(json.success && json.data && keys > 0){
+        const merged = {};
+        Object.entries(json.data).forEach(([k,v])=>{
+          merged[k] = (typeof v === 'string') ? JSON.parse(v) : v;
+        });
+        applyData(merged);
+        localStorage.setItem(LS_KEY, JSON.stringify(merged));
+        toast('☁️ DB에서 데이터를 불러왔습니다');
+        return true;
+      } else {
+        toast('⚠️ DB 데이터 없음 → 로컬 사용');
+        return false;
+      }
+    } catch(e){
+      if(attempt < 3){
+        toast(`⏳ 서버 연결 중... (${attempt}/3)`);
+        await new Promise(r => setTimeout(r, 3000 * attempt));
+        return tryLoad(attempt + 1);
+      }
+      console.warn('DB 불러오기 실패, localStorage 사용:', e);
+      return false;
     }
-  } catch(e){
-    toast('⚠️ DB 연결 실패: ' + e.message);
-    console.warn('DB 불러오기 실패, localStorage 사용:', e);
+  };
+
+  const ok = await tryLoad();
+  if(!ok){
+    // localStorage 폴백
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if(!raw) return;
+      applyData(JSON.parse(raw));
+      toast('💾 로컬 데이터를 불러왔습니다');
+    } catch(e){ console.warn('불러오기 실패:', e); }
   }
-  // localStorage 폴백
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if(!raw) return;
-    applyData(JSON.parse(raw));
-    toast('💾 로컬 데이터를 불러왔습니다');
-  } catch(e){ console.warn('불러오기 실패:', e); }
 }
 
 function lsReset(){
